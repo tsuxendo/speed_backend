@@ -1,0 +1,131 @@
+# https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/template-reference.html
+
+AWSTemplateFormatVersion: 2010-09-09
+
+# 構成
+#   - VPC
+#   - Public Subnet
+#   - Internet Gateway
+#   - VPC Gateway Attachment
+#   - Route Table
+#   - Route
+#   - Subnet Route Table Association
+# その他
+#   - IPv4 のみをサポート
+
+Resources:
+  CustomVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      # CIDR ブロック（必須）
+      #   VPC 用の IPv4 CIDR ブロック
+      #   IPv4 プライベートアドレス範囲 (RFC 1918) より指定
+      #     - 大規模: 10.0.0.0 ~ 10.255.255.255
+      #     - 中規模: 172.16.0.0 ~ 172.31.255.255
+      #     - 小規模: 192.168.0.0 ~ 192.168.255.255
+      #   ネットマスク 16 ~ 28 で指定
+      #   一般の小規模なブロックで良い場合は 192.168.n.0/24 でも十分
+      #   この場合、 192.168.n.4 ~ 192.168.n.254 のアドレスを自由に利用できる
+      CidrBlock: 192.168.0.0/16
+      # DNS サポート（デフォルト: false）
+      #   Public IP を持つインスタンスに Public DNS ホスト名を割り当てるかどうか
+      EnableDnsHostnames: false
+      # DNS サポート（デフォルト: true）
+      #   DNS サーバーによる名前解決をサポートするかどうか
+      EnableDnsSupport: true
+      # インスタンステナンシー（デフォルト: default）
+      #   ハードウエアを物理的に確保するかどうか
+      #   default: 共有のハードウエアを必要に応じて利用
+      InstanceTenancy: default
+      # Ipv4IpamPoolId: String
+      # Ipv4NetmaskLength: Integer
+      Tags:
+        - Key: Name
+          Value: CustomVPC
+
+  CustomPublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      # AssignIpv6AddressOnCreation: Boolean
+      AvailabilityZone: ap-northeast-1a
+      # AvailabilityZoneId: String
+      CidrBlock: 192.168.1.0/24
+      # EnableDns64: Boolean
+      # Ipv6CidrBlock: String
+      # Ipv6Native: Boolean
+      MapPublicIpOnLaunch: true
+      # OutpostArn: String
+      # PrivateDnsNameOptionsOnLaunch: Json
+      Tags:
+        - Key: Name
+          Value: CustomPublicSubnetA
+      VpcId: !Ref CustomVPC
+
+  CustomPublicSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      # AssignIpv6AddressOnCreation: Boolean
+      AvailabilityZone: ap-northeast-1c
+      # AvailabilityZoneId: String
+      CidrBlock: 192.168.2.0/24
+      # EnableDns64: Boolean
+      # Ipv6CidrBlock: String
+      # Ipv6Native: Boolean
+      MapPublicIpOnLaunch: true
+      # OutpostArn: String
+      # PrivateDnsNameOptionsOnLaunch: Json
+      Tags:
+        - Key: Name
+          Value: CustomPublicSubnetC
+      VpcId: !Ref CustomVPC
+
+  CustomInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CustomInternetGateway
+
+  CustomVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref CustomInternetGateway
+      VpcId: !Ref CustomVPC
+      # VpnGatewayId: String
+
+  CustomRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CustomRouteTable
+      VpcId: !Ref CustomVPC
+
+  CustomRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      # CarrierGatewayId: String
+      DestinationCidrBlock: 0.0.0.0/0
+      # DestinationIpv6CidrBlock: String
+      # EgressOnlyInternetGatewayId: String
+      GatewayId: !Ref CustomInternetGateway
+      # InstanceId: String
+      # LocalGatewayId: String
+      # NatGatewayId: String
+      # NetworkInterfaceId: String
+      RouteTableId: !Ref CustomRouteTable
+      # TransitGatewayId: String
+      # VpcEndpointId: String
+      # VpcPeeringConnectionId: String
+
+  CustomSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref CustomRouteTable
+        SubnetId: !Ref CustomPublicSubnetA
+
+  CustomSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref CustomRouteTable
+        SubnetId: !Ref CustomPublicSubnetC

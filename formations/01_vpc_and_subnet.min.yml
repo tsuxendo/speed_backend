@@ -1,0 +1,309 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+
+
+##########
+# VPC    #
+##########
+
+VPC:
+  Type: AWS::EC2::VPC
+  Properties:
+    CidrBlock: 192.168.0.0/16
+    EnableDnsHostnames: true
+    EnableDnsSupport: true
+    InstanceTenancy: default
+    Tags:
+      - Key: Name
+        Value: custom-vpc
+
+
+#######################
+# Internet Gateway    #
+#######################
+
+InternetGateway:
+  Type: AWS::EC2::InternetGateway
+  Properties:
+    Tags:
+      - Key: Name
+        Value: custom-igw
+
+VPCGatewayAttachment:
+  Type: AWS::EC2::VPCGatewayAttachment
+  Properties:
+    InternetGatewayId: !Ref InternetGateway
+    VpcId: !Ref VPC
+
+
+#############
+# Subnet    #
+#############
+
+PublicSubnet1:
+  Type: AWS::EC2::Subnet
+  Properties:
+    AvailabilityZone: ap-northeast-1a
+    CidrBlock: 192.168.1.0/24
+    MapPublicIpOnLaunch: true
+    Tags:
+      - Key: Name
+        Value: custom-subnet-public1-ap-northeast-1a
+    VpcId: !Ref VPC
+
+PublicSubnet2:
+  Type: AWS::EC2::Subnet
+  Properties:
+    AvailabilityZone: ap-northeast-1c
+    CidrBlock: 192.168.2.0/24
+    MapPublicIpOnLaunch: true
+    Tags:
+      - Key: Name
+        Value: custom-subnet-public2-ap-northeast-1c
+    VpcId: !Ref VPC
+
+PrivateSubnet1:
+  Type: AWS::EC2::Subnet
+  Properties:
+    AvailabilityZone: ap-northeast-1a
+    CidrBlock: 192.168.1.0/24
+    Tags:
+      - Key: Name
+        Value: custom-subnet-private1-ap-northeast-1a
+    VpcId: !Ref VPC
+
+PrivateSubnet2:
+  Type: AWS::EC2::Subnet
+  Properties:
+    AvailabilityZone: ap-northeast-1c
+    CidrBlock: 192.168.2.0/24
+    Tags:
+      - Key: Name
+        Value: custom-subnet-private2-ap-northeast-1c
+    VpcId: !Ref VPC
+
+
+##################
+# Route Table    #
+##################
+
+PublicRouteTable:
+  Type: AWS::EC2::RouteTable
+  Properties:
+    Tags:
+      - Key: Name
+        Value: custom-rtb-public
+    VpcId: !Ref VPC
+
+PrivateRouteTable1:
+  Type: AWS::EC2::RouteTable
+  Properties:
+    Tags:
+      - Key: Name
+        Value: custom-rtb-private1-ap-northeast-1a
+    VpcId: !Ref VPC
+
+PrivateRouteTable2:
+  Type: AWS::EC2::RouteTable
+  Properties:
+    Tags:
+      - Key: Name
+        Value: custom-rtb-private2-ap-northeast-1c
+    VpcId: !Ref VPC
+
+PublicSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+PublicSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+PrivateSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+PrivateSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+
+Route:
+  Type: AWS::EC2::Route
+  Properties:
+    DestinationCidrBlock: 0.0.0.0/0
+    GatewayId: !Ref InternetGateway
+    RouteTableId: !Ref PublicRouteTable
+
+
+##################
+# Network ACL    #
+##################
+
+NetworkAcl:
+  Type: AWS::EC2::NetworkAcl
+  Properties:
+    Tags:
+      - Key: Name
+        Value: custom-nacl
+    VpcId: !Ref VPC
+
+PublicSubnetNetworkAclAssociation1:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    SubnetId: !Ref PublicSubnet1
+
+PublicSubnetNetworkAclAssociation2:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    SubnetId: !Ref PublicSubnet2
+
+PrivateSubnetNetworkAclAssociation1:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    SubnetId: !Ref PrivateSubnet1
+
+PrivateSubnetNetworkAclAssociation2:
+  Type: AWS::EC2::SubnetNetworkAclAssociation
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    SubnetId: !Ref PrivateSubnet2
+
+InboundHTTPNetworkAclEntry:
+  Type: AWS::EC2::NetworkAclEntry
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    RuleNumber: 100
+    Protocol: 6
+    RuleAction: allow
+    Egress: false
+    CidrBlock: 0.0.0.0/0
+    PortRange:
+      From: 80
+      To: 80
+
+InboundHTTPSNetworkAclEntry:
+  Type: AWS::EC2::NetworkAclEntry
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    RuleNumber: 110
+    Protocol: 6
+    RuleAction: allow
+    Egress: false
+    CidrBlock: 0.0.0.0/0
+    PortRange:
+      From: 443
+      To: 443
+
+InboundSSHNetworkAclEntry:
+  Type: AWS::EC2::NetworkAclEntry
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    RuleNumber: 120
+    Protocol: 6
+    RuleAction: allow
+    Egress: false
+    CidrBlock: 0.0.0.0/0
+    PortRange:
+      From: 22
+      To: 22
+
+InboundResponseNetworkAclEntry:
+  Type: AWS::EC2::NetworkAclEntry
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    RuleNumber: 130
+    Protocol: 6
+    RuleAction: allow
+    Egress: false
+    CidrBlock: 0.0.0.0/0
+    PortRange:
+      From: 1024
+      To: 65535
+
+OutboundHTTPNetworkAclEntry:
+  Type: AWS::EC2::NetworkAclEntry
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    RuleNumber: 100
+    Protocol: 6
+    RuleAction: allow
+    Egress: true
+    CidrBlock: 0.0.0.0/0
+    PortRange:
+      From: 80
+      To: 80
+
+OutboundHTTPSNetworkAclEntry:
+  Type: AWS::EC2::NetworkAclEntry
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    RuleNumber: 110
+    Protocol: 6
+    RuleAction: allow
+    Egress: true
+    CidrBlock: 0.0.0.0/0
+    PortRange:
+      From: 443
+      To: 443
+
+OutBoundResponseNetworkAclEntry:
+  Type: AWS::EC2::NetworkAclEntry
+  Properties:
+    NetworkAclId: !Ref NetworkAcl
+    RuleNumber: 120
+    Protocol: 6
+    RuleAction: allow
+    Egress: true
+    CidrBlock: 0.0.0.0/0
+    PortRange:
+      From: 1024
+      To: 65535
+
+
+###################
+# DHCP Options    #
+###################
+
+DHCPOptions:
+  Type: AWS::EC2::DHCPOptions
+  Properties:
+    DomainName: ap-northeast-1.compute.internal
+    DomainNameServers:
+      - AmazonProvidedDNS
+    Tags:
+      - Key: Name
+        Value: custom-dhcp-options
+
+VPCDHCPOptionsAssociation:
+  Type: AWS::EC2::VPCDHCPOptionsAssociation
+  Properties:
+    DhcpOptionsId: !Ref DHCPOptions
+    VpcId: !Ref VPC
+
+
+###################
+# ------------    #
+###################
+
+# ecs
+# rds
+# s3
+# cloudfront
+# cloudwatch
+# targetgroup
+# alb
+# sg
+# role
+# codepipeline
+# cognito

@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+
+
+#########
+# S3    #
+#########
+
+Bucket:
+  Type: AWS::S3::Bucket
+  DeletionPolicy: Retain
+  Properties:
+    BucketName: custom-bucket
+    PublicAccessBlockConfiguration:
+      BlockPublicAcls: true
+      BlockPublicPolicy: true
+      IgnorePublicAcls: true
+      RestrictPublicBuckets: true
+    Tags:
+      - Key: Name
+        Value: custom-bucket
+    WebsiteConfiguration:
+      IndexDocument: index.html
+      ErrorDocument: error.html
+
+BucketPolicy:
+  Type: AWS::S3::BucketPolicy
+  Properties:
+    Bucket: !Ref Bucket
+    PolicyDocument:
+      Statement:
+        Action:
+          - s3:GetObject
+        Effect: Allow
+        Resource: !Sub arn:aws:s3:::${Bucket}/*
+        Principal:
+          AWS: !Sub arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOriginAccessIdentity}
+
+
+#################
+# CloudFront    #
+#################
+
+CloudFrontOriginAccessIdentity:
+  Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+  Properties:
+    CloudFrontOriginAccessIdentityConfig:
+      Comment: custom-oai
+
+Distribution:
+  Type: AWS::CloudFront::Distribution
+  Properties:
+    DistributionConfig:
+      Origins:
+        - Id: S3Origin
+          DomainName: !GetAtt Bucket.DomainName
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}
+      Enabled: true
+      DefaultRootObject: index.html
+      Comment: custom-bucket
+      DefaultCacheBehavior:
+        TargetOriginId: S3Origin
+        ForwardedValues:
+          QueryString: false
+          Cookies:
+            Forward: none
+        ViewerProtocolPolicy: redirect-to-https
+        AllowedMethods:
+          - DELETE
+          - GET
+          - HEAD
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
+
+        TrustedSigners:
+        - 1234567890EX
+        - 1234567891EX
+
+        ViewerProtocolPolicy: allow-all
+        ViewerProtocolPolicy: redirect-to-https
+        ForwardedValues:
+          QueryString: false
+          Cookies:
+            Forward: none
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+      ViewerCertificate:
+        CloudFrontDefaultCertificate: true
